@@ -1,0 +1,23 @@
+{
+    "cmake.sourceDirectory": "${workspaceFolder}",
+    "cmake.buildDirectory": "${workspaceFolder}/build",
+    "cmake.generator": "Ninja",
+    "cmake.toolchainFile": "${workspaceFolder}/@TOOLCHAIN_FILE@",
+    "cmake.configureSettings": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": true
+    },
+    "cmake.buildBeforeRun": true,
+    "cmake.clearOutputBeforeBuild": true,
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "C_Cpp.default.cStandard": "c99",
+    "C_Cpp.default.cppStandard": "c++17",
+    "C_Cpp.intelliSenseEngine": "default",
+    "files.associations": {
+        "*.h": "c",
+        "*.c": "c"
+    },
+    "stm32.device": "@JLINK_DEVICE@",
+    "stm32.interface": "@JLINK_INTERFACE@",
+    "stm32.speed": @JLINK_SPEED@,
+    "cortex-debug.liveWatchRefreshRate": 300
+}

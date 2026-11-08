@@ -1,0 +1,36 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug (J-Link)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${command:cmake.launchTargetPath}",
+            "servertype": "jlink",
+            "device": "${config:stm32.device}",
+            "interface": "${config:stm32.interface}",
+            "serverpath": "JLinkGDBServerCL.exe",
+            "armToolchainPath": "@ARM_TOOLCHAIN_PATH@",
+            "serverArgs": [
+                "-select", "USB",
+                "-port", "50000",
+                "-swoport", "50001",
+                "-telnetport", "50002",
+                "-endian", "little",
+                "-speed", "${config:stm32.speed}",
+                "-if", "${config:stm32.interface}"
+            ],
+            "runToEntryPoint": "main",
+            // CORTEX LIVE WATCH: add global/static variables with the "+" button.
+            // The live_waveform task plots these same expressions as coloured
+            // real-time curves in a browser, and additionally supports C
+            // expressions such as "angle*360/65536".
+            "liveWatch": {
+                "enabled": true,
+                "samplesPerSecond": 10
+            },
+            "showDevDebugOutput": "none"
+        }
+    ]
+}

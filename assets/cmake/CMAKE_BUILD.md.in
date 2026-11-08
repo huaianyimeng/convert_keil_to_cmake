@@ -1,0 +1,132 @@
+# CMake 构建说明 / CMake Build Guide
+
+## 状态 / Status
+
+- 中文：目标 `@TARGET_NAME@`，状态为 **@STATUS_ZH@**。@STATUS_DETAIL_ZH@
+- English: Target `@TARGET_NAME@`; status: **@STATUS_EN@**. @STATUS_DETAIL_EN@
+
+## 独立工程 / Standalone Project
+
+中文：本目录是一个完整独立的 CMake 工程，所有源码、头文件、启动文件、链接脚本与构建脚本均在目录内；构建不读取、不依赖原 Keil 工程目录，原工程保持不变。可整体复制到任意位置后直接配置与编译。
+
+English: This directory is a fully self-contained CMake project: all sources, headers, startup code, linker scripts and build scripts live inside it. The build neither reads nor depends on the original Keil project directory, which remains untouched. Copy the whole folder anywhere and configure/build it directly.
+
+## 环境检查 / Environment Check
+
+中文：在项目根目录执行以下命令，确认必需工具可用：
+
+English: Run this command from the project root to confirm required tools are available:
+
+```text
+@ENV_CHECK_COMMAND@
+```
+
+## 编译 / Build
+
+中文：在项目根目录依次执行：
+
+English: Run these commands from the project root:
+
+```text
+@CONFIGURE_COMMAND@
+@BUILD_COMMAND@
+```
+
+## 资源占用 / Resource Usage
+
+中文：每次真正发生链接时（首次构建、`rebuild`、或源码改动导致重链接），编译输出末尾会打印两行占用条；增量构建显示 `no work to do` 时不打印。格式示意：
+
+English: Whenever a link actually happens (first build, `rebuild`, or a source change forcing a relink), two usage bars are printed at the end of the build output. An incremental `no work to do` prints nothing. Format illustration:
+
+```text
+flash [>>>>                ] (xx.x%) used:  xx.x KB, total: yyy.y KB
+ram   [>>>>                ] (xx.x%) used:   x.x KB, total:  yy.y KB
+```
+
+中文：口径为 Flash = `text + data`；RAM = `data + 静态 bss + 堆/栈预留`（默认含预留，`--static-only` 可切换为纯静态）。容量直接取自链接脚本的 `MEMORY`，改容量只需改一处。GNU `size` 的 bss 本身已包含 `._user_heap_stack` 一类 NOBITS 预留段，脚本会先扣除再统一加回，避免重复计算。`KB` 为 KiB（1024 字节），条宽默认 20 格、百分比保留 1 位小数，输出全 ASCII 以避免 Windows 控制台中文乱码。
+
+English: Formulas are Flash = `text + data`; RAM = `data + static bss + heap/stack reservation` (included by default; `--static-only` switches to pure static). Capacities come from the linker script's `MEMORY` block, so a capacity change only needs one edit. GNU `size` already counts NOBITS reservation sections such as `._user_heap_stack` inside bss; the script subtracts them and adds the reservation back once to avoid double counting. `KB` means KiB (1024 bytes), bars default to 20 cells, percentages have one decimal, and output is pure ASCII to avoid Windows console encoding issues.
+
+中文：需要明细时手动执行：
+
+English: To inspect the breakdown manually:
+
+```text
+@SIZE_REPORT_DETAIL_COMMAND@
+```
+
+## VSCode 一键操作 / VSCode One-Click Actions
+
+中文：安装以下 VSCode 扩展后，可使用状态栏按钮和快捷键操作：
+
+English: Install the following VSCode extensions for one-click build, flash, and debug:
+
+| 扩展 / Extension | ID | 用途 / Purpose |
+| --- | --- | --- |
+| CMake Tools | `ms-vscode.cmake-tools` | 编译/重新编译/清理（状态栏）/ Build/Rebuild/Clean (status bar) |
+| Cortex-Debug | `marus25.cortex-debug` | J-Link 调试（F5）/ J-Link debug (F5) |
+
+| 操作 / Action | 方式 / How | 功能 / Purpose |
+| --- | --- | --- |
+| Build Project | Run Task → `build_project` 或 Project Outline → `build_project` / Run Task → `build_project` or Project Outline → `build_project` | 编译 / Compile |
+| Rebuild | Run Task → `rebuild` 或 Project Outline → `rebuild` / Run Task → `rebuild` or Project Outline → `rebuild` | 清除+重新编译 / Clean + rebuild |
+| Clean Project | Run Task → `clean_project` 或 Project Outline → `clean_project` / Run Task → `clean_project` or Project Outline → `clean_project` | 清除编译产物 / Clean build artifacts |
+| Erase+Program+Verify | Run Task → `erase_program_verify` 或 Project Outline → `erase_program_verify` / Run Task → `erase_program_verify` or Project Outline → `erase_program_verify` | 编译+擦除+烧录+校验 / Compile + erase + program + verify |
+| Erase | Run Task → `erase` 或 Project Outline → `erase` / Run Task → `erase` or Project Outline → `erase` | 全片擦除 / Full-chip erase |
+| Detect | Run Task → `detect` 或 Project Outline → `detect` / Run Task → `detect` or Project Outline → `detect` | 芯片连接检测 / Chip connection detection |
+
+### 调试 / Debug
+
+中文：按 F5 调试前，需为当前工作区设置一次"启动目标"（CMake Tools 会记住该选择）：
+
+English: Before pressing F5, set the "launch target" once per workspace (CMake Tools remembers the selection):
+
+```text
+Ctrl+Shift+P → CMake: Set Launch/Debug Target → 选择 @TARGET_NAME@.elf
+Ctrl+Shift+P → CMake: Set Launch/Debug Target → select @TARGET_NAME@.elf
+```
+
+中文：`launch.json` 中的 `executable` 使用 `${command:cmake.launchTargetPath}` 自动解析所选目标的 ELF 路径，换工程或换固件名时无需修改任何文件，只需重新选择启动目标。若 F5 报 "Unable to find executable"，通常是尚未设置启动目标或尚未编译。`launch.json` 已启用 `liveWatch`（10 Hz，需 Cortex-Debug v1.6+）：调试会话中 Run and Debug 视图会出现 CORTEX LIVE WATCH 面板，点 `+` 添加全局/静态变量，程序运行时实时刷新、无需停机；局部变量与核心寄存器仍需暂停查看。
+
+English: `executable` in `launch.json` uses `${command:cmake.launchTargetPath}` to resolve the selected target's ELF automatically, so switching projects or firmware names requires no file edits — just re-select the launch target. An "Unable to find executable" error on F5 usually means the launch target is unset or the project has not been built yet. `liveWatch` (10 Hz, requires Cortex-Debug v1.6+) is enabled: during a session the CORTEX LIVE WATCH panel appears in the Run and Debug view — press `+` to add global/static variables and they refresh in real time while running, without halting; locals and core registers still require a pause.
+
+### 实时波形 / Live Waveform
+
+中文：`scripts/live_waveform.py` 把 CORTEX LIVE WATCH 的表达式绘制成浏览器实时波形：支持 C 表达式（如 `angle*360/65536`）、多条曲线不同颜色、60 fps 平滑滚动、暂停/清空、时间窗、光标读数与 CSV 导出。执行 `python scripts/live_waveform.py`（或 Run Task → `live_waveform`），浏览器自动打开。采样率取自 `launch.json` 的 `samplesPerSecond`，刷新取自 `settings.json` 的 `cortex-debug.liveWatchRefreshRate`。表达式默认来自 VS Code Live Watch 列表；列表为空时自动从 ELF 挑选全局标量，也可用 `--expr` 指定、`--list-symbols` 查看候选。
+
+English: `scripts/live_waveform.py` plots CORTEX LIVE WATCH expressions as browser waveforms: C expressions (e.g. `angle*360/65536`), per-channel colours, smooth 60 fps scrolling, pause/clear, time window, cursor readout and CSV export. Run `python scripts/live_waveform.py` (or Run Task → `live_waveform`); the browser opens automatically. Sample rate comes from `samplesPerSecond` in `launch.json`, refresh from `cortex-debug.liveWatchRefreshRate` in `settings.json`. Expressions come from the VS Code Live Watch list; when empty, the tool auto-picks global scalars from the ELF. Use `--expr` to choose your own and `--list-symbols` to list candidates.
+
+中文：**J-Link 独占**——运行波形工具时不能同时按 F5 调试，用完按 Ctrl+C 停止。工具经 J-Link 后台读 RAM，不暂停 CPU，控制循环照常运行。
+
+English: **J-Link is exclusive** — do not run the waveform tool and an F5 debug session at the same time; press Ctrl+C when done. The tool reads RAM in the background without halting the CPU, so the control loop keeps running.
+
+```text
+python scripts/live_waveform.py --rate 20
+python scripts/live_waveform.py --expr "angle*360/65536" --expr raw
+python scripts/live_waveform.py --list-symbols
+python scripts/live_waveform.py --headless --duration 5
+```
+
+## 烧录 / Flash
+
+中文：确保 J-Link 已连接，执行以下命令烧录固件：
+
+English: Ensure J-Link is connected, run this command to flash firmware:
+
+```text
+@FLASH_COMMAND@
+```
+
+## 编译成品 / Build Outputs
+
+| 文件 / File | 简介 / Description |
+| --- | --- |
+| `@ELF_PATH@` | 可调试的固件及符号 / Debuggable firmware and symbols |
+| `@BIN_PATH@` | 原始烧录镜像 / Raw programming image |
+| `@HEX_PATH@` | Intel HEX 烧录镜像 / Intel HEX programming image |
+| `@MAP_PATH@` | 链接映射与内存分布 / Link map and memory layout |
+
+## 备注 / Notes
+
+- 中文：@NOTES_ZH@
+- English: @NOTES_EN@

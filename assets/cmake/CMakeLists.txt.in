@@ -1,0 +1,120 @@
+cmake_minimum_required(VERSION 3.20)
+
+project(@PROJECT_NAME@ LANGUAGES C ASM)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS ON)
+
+set(PROJECT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(SOURCE_DIR "${PROJECT_DIR}/@SOURCE_DIRECTORY@")
+
+set(TARGET_FLAGS
+    @CPU_FLAGS@
+)
+
+set(PROJECT_SOURCES
+    @SOURCE_FILES@
+)
+
+add_executable(${PROJECT_NAME}.elf ${PROJECT_SOURCES})
+
+set(LINKER_SCRIPT "${PROJECT_DIR}/@LINKER_SCRIPT@")
+set_property(TARGET ${PROJECT_NAME}.elf PROPERTY LINK_DEPENDS ${LINKER_SCRIPT})
+
+target_include_directories(${PROJECT_NAME}.elf PRIVATE
+    @INCLUDE_DIRECTORIES@
+)
+
+target_compile_definitions(${PROJECT_NAME}.elf PRIVATE
+    @COMPILE_DEFINITIONS@
+)
+
+target_compile_options(${PROJECT_NAME}.elf PRIVATE
+    ${TARGET_FLAGS}
+    $<$<COMPILE_LANGUAGE:C>:-ffunction-sections>
+    $<$<COMPILE_LANGUAGE:C>:-fdata-sections>
+    $<$<COMPILE_LANGUAGE:ASM>:-x>
+    $<$<COMPILE_LANGUAGE:ASM>:assembler-with-cpp>
+    @LANGUAGE_COMPILE_OPTIONS@
+)
+
+target_link_options(${PROJECT_NAME}.elf PRIVATE
+    ${TARGET_FLAGS}
+    -T${LINKER_SCRIPT}
+    -Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.map
+    -Wl,--gc-sections
+    @LINK_OPTIONS@
+)
+
+set(ELF_FILE ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.elf)
+set(BIN_FILE ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.bin)
+set(HEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.hex)
+
+add_custom_command(TARGET ${PROJECT_NAME}.elf POST_BUILD
+    COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:${PROJECT_NAME}.elf> ${BIN_FILE}
+    COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:${PROJECT_NAME}.elf> ${HEX_FILE}
+    # POST_BUILD runs only when a link actually happens (first build, rebuild, or
+    # a relink after a source change); incremental "no work to do" prints nothing.
+    # size_report.py prints FLASH/RAM usage bars and reads capacities from the LD script.
+    COMMAND python ${CMAKE_SOURCE_DIR}/scripts/size_report.py
+        $<TARGET_FILE:${PROJECT_NAME}.elf> ${LINKER_SCRIPT}
+        --size-tool ${CMAKE_SIZE}
+    BYPRODUCTS ${BIN_FILE} ${HEX_FILE}
+    COMMENT "building firmware artifacts"
+    VERBATIM
+)
+
+add_custom_target(build_project
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all
+    COMMENT "Building all targets..."
+    VERBATIM
+)
+
+add_custom_target(rebuild
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target clean
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all
+    COMMENT "Clean and rebuild all..."
+    VERBATIM
+)
+
+add_custom_target(clean_project
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target clean
+    COMMENT "Cleaning build artifacts..."
+    VERBATIM
+)
+
+add_custom_target(erase_program_verify
+    COMMAND ${CMAKE_COMMAND} -E env
+        "WORKSPACE_FOLDER=${CMAKE_SOURCE_DIR}"
+        "STM32_DEVICE=@JLINK_DEVICE@"
+        "STM32_INTERFACE=@JLINK_INTERFACE@"
+        "STM32_SPEED=@JLINK_SPEED@"
+        python ${CMAKE_SOURCE_DIR}/scripts/jlink_flash.py flash
+    DEPENDS ${PROJECT_NAME}.elf
+    COMMENT "Erase + Program + Verify via J-Link..."
+    VERBATIM
+)
+
+add_custom_target(erase
+    COMMAND ${CMAKE_COMMAND} -E env
+        "WORKSPACE_FOLDER=${CMAKE_SOURCE_DIR}"
+        "STM32_DEVICE=@JLINK_DEVICE@"
+        "STM32_INTERFACE=@JLINK_INTERFACE@"
+        "STM32_SPEED=@JLINK_SPEED@"
+        python ${CMAKE_SOURCE_DIR}/scripts/jlink_flash.py erase
+    COMMENT "Erasing chip via J-Link..."
+    VERBATIM
+)
+
+add_custom_target(detect
+    COMMAND ${CMAKE_COMMAND} -E env
+        "WORKSPACE_FOLDER=${CMAKE_SOURCE_DIR}"
+        "STM32_DEVICE=@JLINK_DEVICE@"
+        "STM32_INTERFACE=@JLINK_INTERFACE@"
+        "STM32_SPEED=@JLINK_SPEED@"
+        python ${CMAKE_SOURCE_DIR}/scripts/jlink_flash.py detect
+    COMMENT "Detecting chip via J-Link..."
+    VERBATIM
+)

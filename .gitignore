@@ -1,0 +1,10 @@
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Local editor / OS files
+.DS_Store
+Thumbs.db
+
+# WorkBuddy workspace data (local only, never publish)
+.workbuddy/

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Convert Keil to CMake"
+  short_description: "Convert Keil embedded projects into portable CMake builds"
+  default_prompt: "Use $convert-keil-to-cmake to convert this Keil project into a CMake and Ninja build."
